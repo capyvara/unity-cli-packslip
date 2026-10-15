@@ -1,0 +1,6 @@
+/build/
+/work/
+__pycache__/
+*.py[cod]
+*.key
+.DS_Store

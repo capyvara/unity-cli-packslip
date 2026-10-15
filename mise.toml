@@ -1,0 +1,12 @@
+[tools]
+packslip = "1.7.0"
+"github:rhysd/actionlint" = "1.7.12"
+
+[tasks.check]
+description = "Run release preparation tests"
+run = ["python3 -m unittest discover -s tests -v", "actionlint"]
+
+[tasks.prepare]
+description = "Download and verify a pinned Unity CLI release"
+usage = 'arg "<version>" help="Exact Unity CLI version"'
+run = 'python3 scripts/prepare_release.py "$usage_version"'

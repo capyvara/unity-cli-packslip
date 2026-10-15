@@ -1,0 +1,68 @@
+name: Publish Unity CLI Packslip
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact Unity CLI version (for example, 1.0.0-beta.13)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unity-cli-packslip-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      UNITY_RELEASE_VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: 2026.10.7
+      - run: mise run check
+      - name: Download and verify Unity binaries
+        run: |
+          python3 scripts/prepare_release.py "$UNITY_RELEASE_VERSION" \
+            --output build/release --project "github.com/$GITHUB_REPOSITORY"
+      - name: Sign as a repackager
+        run: |
+          packslip create --manifest build/release/release.toml \
+            --attested-by repackager \
+            --evidence "checksum-file-over-tls=https://public-cdn.cloud.unity3d.com/hub/prod/cli/$UNITY_RELEASE_VERSION/latest.json" \
+            --out build/release/packslip
+      - name: Verify the signature and all six downloads
+        run: |
+          packslip verify build/release/packslip/packslip.sigstore.json \
+            --identity "https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/heads/main" \
+            --issuer https://token.actions.githubusercontent.com \
+            --artifact build/release/unity-darwin-arm64 \
+            --artifact build/release/unity-darwin-x64 \
+            --artifact build/release/unity-linux-arm64 \
+            --artifact build/release/unity-linux-x64 \
+            --artifact build/release/unity-windows-arm64.exe \
+            --artifact build/release/unity-windows-x64.exe
+      - name: Publish metadata
+        run: |
+          prerelease=()
+          if [[ "$UNITY_RELEASE_VERSION" == *-* ]]; then
+            prerelease=(--prerelease)
+          fi
+          gh release create "v$UNITY_RELEASE_VERSION" \
+            build/release/packslip/packslip.sigstore.json \
+            build/release/upstream-manifest.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Unity CLI $UNITY_RELEASE_VERSION" \
+            --notes-file build/release/release-notes.md \
+            "${prerelease[@]}"
