@@ -17,9 +17,8 @@ install a Unity Editor or activate a Unity license.
 
 ## Install with mise
 
-These instructions become usable after the repository and its first signed
-release have been published. Use a recent mise release with the Packslip backend
-(locally checked with mise 2026.10.7).
+The first signed release is `1.0.0-beta.13`. Use a recent mise release with the
+Packslip backend (verified with mise 2026.10.7 against the public release).
 
 Add this to `mise.toml`:
 
@@ -38,13 +37,27 @@ mise exec -- unity --version
 
 For the latest published beta, replace the version with `"latest"` and add
 `prerelease = true`. Only Unity versions with a signed release in this repository
-are available. For reproducible installs, keep an exact version or generate and
+are available. Fresh releases may be hidden from `latest` and `mise ls-remote`
+by mise's `minimum_release_age` setting; an exact version installs immediately.
+For reproducible installs, keep an exact version or generate and
 commit `mise.lock` with `mise lock`, then use `mise install --locked`.
 
 The `workflow` option pins the repository's manual release workflow on `main`.
 GitHub Actions signs with its OIDC identity, so no long-lived signing key is
-needed. After the first public release, the maintainer should publish the
-`packslip pin` signer fingerprint in these instructions.
+needed. The verified repository signer fingerprint is:
+
+```text
+ps1_mpg4wf4wjxgobv2w4b3xf45cia
+```
+
+To check a downloaded release bundle against that fingerprint:
+
+```sh
+packslip verify packslip.sigstore.json \
+  --pin ps1_mpg4wf4wjxgobv2w4b3xf45cia \
+  --identity https://github.com/capyvara/unity-cli-packslip/.github/workflows/release.yml@refs/heads/main \
+  --issuer https://token.actions.githubusercontent.com
+```
 
 ## Prepare and check locally
 
