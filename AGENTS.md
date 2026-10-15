@@ -13,3 +13,4 @@ This project publishes third-party Packslip metadata for Unity CLI.
   publish releases.
 - Run `mise run check` after changes. Keep generated downloads, signing keys,
   and local bundles out of Git.
+- Keep README.md and AGENTS.md under 200 lines.
