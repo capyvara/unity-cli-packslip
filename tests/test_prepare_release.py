@@ -16,6 +16,7 @@ release = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release)
 VERSION = "1.0.0-beta.13"
 BINARY = b"a verified binary fixture"
+INSTALLER = b'GLIBC_MIN="2.34"\n'
 
 
 def upstream_manifest():
@@ -64,6 +65,8 @@ class PreparationTests(unittest.TestCase):
     def test_preparation_maps_all_six_platforms_to_original_cdn_urls(self):
         manifest = upstream_manifest()
         def response(url):
+            if url.endswith("install.sh"):
+                return io.BytesIO(INSTALLER)
             return io.BytesIO(json.dumps(manifest).encode() if url.endswith("latest.json") else BINARY)
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "build"
@@ -84,6 +87,8 @@ class PreparationTests(unittest.TestCase):
     def test_failed_preparation_removes_stale_signing_metadata(self):
         manifest = upstream_manifest()
         def response(url):
+            if url.endswith("install.sh"):
+                return io.BytesIO(INSTALLER)
             return io.BytesIO(json.dumps(manifest).encode() if url.endswith("latest.json") else b"corrupt")
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
@@ -92,6 +97,18 @@ class PreparationTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     release.prepare(VERSION, output)
             self.assertFalse((output / "release.toml").exists())
+
+    def test_linux_requirement_changes_stop_preparation_before_downloading_binaries(self):
+        for installer in (b'GLIBC_MIN="2.35"\n', b"installer with no GLIBC_MIN"):
+            with self.subTest(installer=installer), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory)
+                with patch.object(release, "fetch", side_effect=[
+                    io.BytesIO(json.dumps(upstream_manifest()).encode()), io.BytesIO(installer),
+                ]) as fetch:
+                    with self.assertRaisesRegex(ValueError, "review Linux requirements"):
+                        release.prepare(VERSION, output)
+                self.assertEqual(fetch.call_count, 2)
+                self.assertFalse((output / "release.toml").exists())
 
     def test_manifest_fetch_failure_removes_stale_signing_metadata(self):
         with tempfile.TemporaryDirectory() as directory:

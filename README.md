@@ -42,7 +42,7 @@ by mise's `minimum_release_age` setting; an exact version installs immediately.
 For reproducible installs, keep an exact version or generate and
 commit `mise.lock` with `mise lock`, then use `mise install --locked`.
 
-The `workflow` option pins the repository's manual release workflow on `main`.
+The `workflow` option pins the repository's release workflow on `main`.
 GitHub Actions signs with its OIDC identity, so no long-lived signing key is
 needed. The verified repository signer fingerprint is:
 
@@ -112,9 +112,29 @@ verification require a published release and are separate checks.
 
 ## Publish a release
 
-Publishing requires explicit owner approval. The `Publish Unity CLI Packslip`
-workflow is manually dispatched on `main` with an exact Unity CLI version. Pushes
-and pull requests run checks only.
+Only the initial publication requires explicit owner approval. Subsequent
+releases may be signed and published automatically by CI, including public
+signing/log entries, after checks and binary verification pass. No per-release
+approval is required.
+
+The `Publish Unity CLI Packslip` workflow checks daily at 09:17 UTC (06:17 in
+São Paulo). It reads Unity's `latest.json`, `latest-beta.json`, and
+`latest-alpha.json` channel manifests and publishes any versions without an
+existing GitHub release. Missing channels (HTTP 404) are skipped; network errors
+and invalid manifests fail the run. Duplicate versions are published only once.
+Only the current channel versions are checked; older releases are not backfilled,
+and versions replaced between daily checks may be missed.
+
+The workflow can also be dispatched manually on `main`: leave the version empty
+to check the latest channels, or provide an exact Unity CLI version. Pushes and
+pull requests run checks only. The daily schedule takes effect once the workflow
+is on the repository's default branch (`main`).
+
+To preview pending versions locally without downloading binaries or publishing:
+
+```sh
+python3 scripts/discover_latest.py --repository capyvara/unity-cli-packslip
+```
 
 The release workflow:
 
@@ -129,8 +149,9 @@ The repository needs GitHub Actions enabled and permission for the workflow to
 write releases and request OIDC tokens. The workflow runs only from `main` and
 marks versions with prerelease identifiers as GitHub prereleases. Existing
 releases are not overwritten. Every new Unity version requires a new publication.
-When preparing a newer release, recheck `GLIBC_MIN` in Unity's official installer
-against the value recorded in `scripts/prepare_release.py`.
+Preparation also checks `GLIBC_MIN` in Unity's official installer against
+`scripts/prepare_release.py`. A changed or missing value stops publication for
+maintainer review of the Linux requirements.
 
 After the first publication, validate real mise discovery and installation:
 

@@ -1,11 +1,13 @@
 name: Publish Unity CLI Packslip
 
 on:
+  schedule:
+    - cron: '17 9 * * *'
   workflow_dispatch:
     inputs:
       version:
-        description: Exact Unity CLI version (for example, 1.0.0-beta.13)
-        required: true
+        description: Exact Unity CLI version (leave empty to check the latest channels)
+        required: false
         type: string
 
 permissions:
@@ -16,21 +18,49 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  discover:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write
-    env:
-      UNITY_RELEASE_VERSION: ${{ inputs.version }}
-      GH_TOKEN: ${{ github.token }}
+    outputs:
+      versions: ${{ steps.discover.outputs.versions }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
           version: 2026.10.7
       - run: mise run check
+      - name: Find unpublished versions
+        id: discover
+        env:
+          UNITY_RELEASE_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          args=(--repository "$GITHUB_REPOSITORY")
+          if [[ -n "$UNITY_RELEASE_VERSION" ]]; then
+            args+=(--version "$UNITY_RELEASE_VERSION")
+          fi
+          versions=$(python3 scripts/discover_latest.py "${args[@]}")
+          echo "versions=$versions" >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: discover
+    if: needs.discover.outputs.versions != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ${{ fromJSON(needs.discover.outputs.versions) }}
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      UNITY_RELEASE_VERSION: ${{ matrix.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: 2026.10.7
       - name: Download and verify Unity binaries
         run: |
           python3 scripts/prepare_release.py "$UNITY_RELEASE_VERSION" \

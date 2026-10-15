@@ -15,8 +15,8 @@ import urllib.request
 
 CDN_BASE = "https://public-cdn.cloud.unity3d.com/hub/prod/cli"
 PROJECT = "github.com/capyvara/unity-cli-packslip"
-# Unity's installer enforces this Native AOT floor. Recheck when upgrading
-# releases: https://public-cdn.cloud.unity3d.com/hub/prod/cli/install.sh
+# Unity's installer enforces this Native AOT floor. Preparation checks it at
+# https://public-cdn.cloud.unity3d.com/hub/prod/cli/install.sh before downloading.
 GLIBC_MIN = "2.34"
 PLATFORMS = {
     "darwin-arm64": ("darwin", "aarch64", "unity-darwin-arm64"),
@@ -72,6 +72,15 @@ def verify_file(path, entry):
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest() == entry["sha256"]
+
+
+def check_glibc_requirement():
+    with fetch(f"{CDN_BASE}/install.sh") as response:
+        installer = response.read().decode("utf-8")
+    match = re.search(r'^GLIBC_MIN="(\d+\.\d+)"$', installer, re.MULTILINE)
+    if not match or match[1] != GLIBC_MIN:
+        raise ValueError("Unity installer GLIBC_MIN changed or is missing; review Linux requirements before publishing")
+    print(f"Verified Unity installer glibc requirement: {GLIBC_MIN}", flush=True)
 
 
 def download_binary(url, destination, entry):
@@ -133,6 +142,7 @@ def prepare(version, output_dir, project=PROJECT):
     with fetch(manifest_url) as response:
         manifest = json.load(response)
     binaries = validate_manifest(manifest, version)
+    check_glibc_requirement()
     for platform, (_, _, filename) in PLATFORMS.items():
         download_binary(manifest_url.removesuffix("latest.json") + filename,
                         output_dir / filename, binaries[platform])
