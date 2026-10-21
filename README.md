@@ -17,14 +17,19 @@ install a Unity Editor or activate a Unity license.
 
 ## Install with mise
 
-The first signed release is `1.0.0-beta.13`. Use a recent mise release with the
-Packslip backend (verified with mise 2026.10.7 against the public release).
+Use a recent mise release with the Packslip backend. To install the latest
+published version, including Unity's prereleases:
 
-Add this to `mise.toml`:
+```sh
+mise use 'packslip:github.com/capyvara/unity-cli-packslip[prerelease=true]@latest'
+```
+
+Or add this to `mise.toml` (with an optional workflow signer pin):
 
 ```toml
 [tools."packslip:github.com/capyvara/unity-cli-packslip"]
-version = "1.0.0-beta.13"
+version = "latest"
+prerelease = true
 workflow = "release.yml@refs/heads/main"
 ```
 
@@ -35,12 +40,18 @@ mise install
 mise exec -- unity --version
 ```
 
-For the latest published beta, replace the version with `"latest"` and add
-`prerelease = true`. Only Unity versions with a signed release in this repository
-are available. Fresh releases may be hidden from `latest` and `mise ls-remote`
-by mise's `minimum_release_age` setting; an exact version installs immediately.
-For reproducible installs, keep an exact version or generate and
-commit `mise.lock` with `mise lock`, then use `mise install --locked`.
+Mise excludes prereleases by default. While this repository has only prereleases,
+omitting `prerelease=true` produces `no versions found`; GitHub's
+`/releases/latest` endpoint also returns HTTP 404. A separate `latest` tag is not
+needed. Once stable versions are published, the plain tool name can select them.
+
+Only Unity versions with a signed release in this repository are available.
+Fresh releases may be hidden from `latest` and `mise ls-remote` by mise's
+`minimum_release_age` setting; an exact version installs immediately. To opt into
+fresh releases for one invocation, prefix the command with
+`MISE_MINIMUM_RELEASE_AGE=0s`.
+For reproducible installs, use an exact version such as `1.0.0-beta.13` or generate
+and commit `mise.lock` with `mise lock`, then use `mise install --locked`.
 
 The `workflow` option pins the repository's release workflow on `main`.
 GitHub Actions signs with its OIDC identity, so no long-lived signing key is
