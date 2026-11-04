@@ -128,9 +128,9 @@ releases may be signed and published automatically by CI, including public
 signing/log entries, after checks and binary verification pass. No per-release
 approval is required.
 
-The `Publish Unity CLI Packslip` workflow checks daily at 09:17 UTC (06:17 in
-São Paulo). It reads Unity's `latest.json`, `latest-beta.json`, and
-`latest-alpha.json` channel manifests and publishes any versions without an
+The `Publish Unity CLI Packslip` workflow checks daily at 21:00 UTC. 
+It reads Unity's `latest.json`, `latest-beta.json`, 
+and`latest-alpha.json` channel manifests and publishes any versions without an
 existing GitHub release. Missing channels (HTTP 404) are skipped; network errors
 and invalid manifests fail the run. Duplicate versions are published only once.
 Only the current channel versions are checked; older releases are not backfilled,
