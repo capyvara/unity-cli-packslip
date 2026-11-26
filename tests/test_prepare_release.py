@@ -16,7 +16,7 @@ release = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release)
 VERSION = "1.0.0-beta.13"
 BINARY = b"a verified binary fixture"
-INSTALLER = b'GLIBC_MIN="2.34"\n'
+INSTALLER = b'GLIBC_MIN="2.31"\n'
 
 
 def upstream_manifest():
@@ -82,7 +82,7 @@ class PreparationTests(unittest.TestCase):
                 self.assertEqual(artifact["url"], f"{release.CDN_BASE}/{VERSION}/{filename}")
                 self.assertEqual(Path(artifact["path"]).read_bytes(), BINARY)
                 if os_name == "linux":
-                    self.assertEqual(artifact["requires"]["glibc_min"], "2.34")
+                    self.assertEqual(artifact["requires"]["glibc_min"], "2.31")
 
     def test_failed_preparation_removes_stale_signing_metadata(self):
         manifest = upstream_manifest()
@@ -99,14 +99,20 @@ class PreparationTests(unittest.TestCase):
             self.assertFalse((output / "release.toml").exists())
 
     def test_linux_requirement_changes_stop_preparation_before_downloading_binaries(self):
-        for installer in (b'GLIBC_MIN="2.35"\n', b"installer with no GLIBC_MIN"):
+        cases = (
+            (b'GLIBC_MIN="2.34"\n', "2.34"),
+            (b'GLIBC_MIN="2.30"\n', "2.30"),
+            (b"installer with no GLIBC_MIN", "missing or unreadable"),
+        )
+        for installer, actual in cases:
             with self.subTest(installer=installer), tempfile.TemporaryDirectory() as directory:
                 output = Path(directory)
                 with patch.object(release, "fetch", side_effect=[
                     io.BytesIO(json.dumps(upstream_manifest()).encode()), io.BytesIO(installer),
                 ]) as fetch:
-                    with self.assertRaisesRegex(ValueError, "review Linux requirements"):
+                    with self.assertRaises(ValueError) as failure:
                         release.prepare(VERSION, output)
+                self.assertIn(f"GLIBC_MIN is {actual}, expected 2.31", str(failure.exception))
                 self.assertEqual(fetch.call_count, 2)
                 self.assertFalse((output / "release.toml").exists())
 

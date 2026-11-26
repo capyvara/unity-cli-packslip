@@ -17,7 +17,7 @@ CDN_BASE = "https://public-cdn.cloud.unity3d.com/hub/prod/cli"
 PROJECT = "github.com/capyvara/unity-cli-packslip"
 # Unity's installer enforces this Native AOT floor. Preparation checks it at
 # https://public-cdn.cloud.unity3d.com/hub/prod/cli/install.sh before downloading.
-GLIBC_MIN = "2.34"
+GLIBC_MIN = "2.31"
 PLATFORMS = {
     "darwin-arm64": ("darwin", "aarch64", "unity-darwin-arm64"),
     "darwin-x64": ("darwin", "x86_64", "unity-darwin-x64"),
@@ -78,8 +78,12 @@ def check_glibc_requirement():
     with fetch(f"{CDN_BASE}/install.sh") as response:
         installer = response.read().decode("utf-8")
     match = re.search(r'^GLIBC_MIN="(\d+\.\d+)"$', installer, re.MULTILINE)
-    if not match or match[1] != GLIBC_MIN:
-        raise ValueError("Unity installer GLIBC_MIN changed or is missing; review Linux requirements before publishing")
+    actual = match[1] if match else "missing or unreadable"
+    if actual != GLIBC_MIN:
+        raise ValueError(
+            f"Unity installer GLIBC_MIN is {actual}, expected {GLIBC_MIN}; "
+            "review Linux requirements before publishing"
+        )
     print(f"Verified Unity installer glibc requirement: {GLIBC_MIN}", flush=True)
 
 

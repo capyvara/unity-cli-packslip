@@ -11,9 +11,11 @@ binary publisher. This project does not build Unity CLI or provide Unity build
 provenance.
 
 Supported downloads are macOS, Linux, and Windows on ARM64 and x64. Packslip reads
-host library requirements from the binaries. Linux downloads require glibc 2.34
-or newer, matching Unity's installer; these releases do not provide a musl/Alpine build. Installing the CLI does not
-install a Unity Editor or activate a Unity license.
+shared library requirements from the binaries. Newly prepared Linux Packslips
+declare glibc 2.31 or newer, matching Unity's installer. Earlier published
+Packslips can list glibc 2.34. Unity provides glibc builds for these Linux
+downloads. Installing the CLI does not install a Unity Editor or activate a
+Unity license.
 
 ## Install with mise
 
